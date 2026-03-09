@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Simpcity - QOL++ (Optimized & Complete)
+// @name         Simpcity - QOL++ (Optimized - Gemini PRO)
 // @namespace    J
-// @version      7.0
+// @version      6.0-v2
 // @description  FastView, Downloads, Link-Umbruch, Iframe/Redirect-Bypass, Header-Auto-Collapse & Nav-Swap in einem performanten Skript.
 // @author       J
 // @match        *://simpcity.cr/*
@@ -238,12 +238,40 @@
             }
         };
 
+        // Methode 1: Über die X-Koordinate
         document.addEventListener('mousemove', (e) => {
             const activeZone = isExpanded ? 150 : 50;
-            if (e.clientY <= activeZone) expandHeader();
-            else collapseHeader();
+
+            // Schätze die Breite deines grünen Bereichs (z.B. die rechten 300 Pixel)
+            const excludeWidth = 345;
+
+            // Prüfe: Ist die Maus im rechten Bereich UND ganz oben?
+            const isInGreenZone = (e.clientX > window.innerWidth - excludeWidth) && (e.clientY <= 50);
+
+            // Klappe aus, wenn wir in der Active Zone sind UND NICHT in der grünen Zone
+            if (e.clientY <= activeZone && !isInGreenZone) {
+                expandHeader();
+            } else {
+                collapseHeader();
+            }
         });
 
+        // Methode 2: Über das HTML-Element
+        /*
+        document.addEventListener('mousemove', (e) => {
+            const activeZone = isExpanded ? 150 : 50;
+
+            // Prüft, ob das Element unter der Maus Teil des ".p-nav-opposite" Containers ist
+            const isInGreenZone = e.target.closest('.p-nav-opposite');
+
+            // Header nur ausklappen, wenn wir in der Active Zone sind UND NICHT im grünen Bereich
+            if (e.clientY <= activeZone && !isInGreenZone) {
+                expandHeader();
+            } else {
+                collapseHeader();
+            }
+        });
+*/
         document.addEventListener('keydown', e => {
             if (e.altKey && e.key.toLowerCase() === 'h') {
                 isFixed = !isFixed;
