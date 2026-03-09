@@ -1,13 +1,14 @@
 // ==UserScript==
-// @name         Simpcity - QOL++ (Optimized - Gemini PRO)
+// @name         Simpcity - QOL++ (Optimized & Complete)
 // @namespace    J
-// @version      6.0
-// @description  Optimierte Version: Ein zentraler Observer für bessere Performance, Zoom per Rechtsklick, Download per Klick etc.
+// @version      7.0
+// @description  FastView, Downloads, Link-Umbruch, Iframe/Redirect-Bypass, Header-Auto-Collapse & Nav-Swap in einem performanten Skript.
 // @author       J
-// @match        https://simpcity.cr/threads/*
+// @match        *://simpcity.cr/*
 // @connect      *
 // @icon         https://i.imgur.com/9It0Ga9.png
 // @grant        GM_download
+// @grant        GM_addStyle
 // ==/UserScript==
 
 (function () {
@@ -27,6 +28,25 @@
             /:\/\/(?:[^\/]*\.)?coomer\.cr\//i
         ]
     };
+
+    // --- GLOBALE STYLES (Für Header-Collapse) ---
+    GM_addStyle(`
+        #header {
+            overflow: hidden;
+            max-height: 0px !important;
+            opacity: 0;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            transition: max-height 0.2s ease-in-out, opacity 0.2s ease-in-out !important;
+        }
+        #header.sc-expanded {
+            max-height: 150px !important;
+            opacity: 1;
+            padding-top: 0px !important;
+            padding-bottom: 0px !important;
+        }
+    `);
+
 
     // --- MODUL 1: FastView & Download ---
     let currentZoomed = null;
@@ -111,7 +131,7 @@
         if (img && img.src.match(/\.md\.(jpg|png)$/i)) { img.alt = ''; img.title = ''; }
     }, true);
 
-    // --- MODUL 2: DOM Manipulation Worker Funktionen ---
+    // --- MODUL 2: DOM Manipulation Worker (Links, Klassen, Iframes) ---
 
     const processWrapper = (wrapper) => {
         wrapper.querySelectorAll('a[href]').forEach(link => {
@@ -119,7 +139,7 @@
                 link.after(document.createElement('br'));
             }
         });
-        // Extra <br> aufräumen
+
         let lastWasBr = false;
         Array.from(wrapper.childNodes).forEach(node => {
             if (node.nodeName === 'BR') {
@@ -173,7 +193,73 @@
         } catch (e) {}
     };
 
+
+    // --- MODUL 3: Navigations-Swap & Header-Collapse ---
+
+    const swapNavLinks = () => {
+        const ul = document.querySelector('.p-sectionLinks-list');
+        if (ul && ul.children.length >= 4) {
+            const secondLi = ul.children[1];  // 2. Element (Watched)
+            const fourthLi = ul.children[3];  // 4. Element (What's New)
+
+            if (secondLi && fourthLi) {
+                ul.insertBefore(fourthLi, secondLi);
+            }
+        }
+    };
+
+    const initHeaderCollapse = () => {
+        const header = document.querySelector('#header');
+        if (!header) return;
+
+        let expandTimeout, collapseTimeout;
+        let isExpanded = false;
+        let isFixed = false;
+
+        const expandHeader = () => {
+            if (isFixed) return;
+            clearTimeout(collapseTimeout);
+            if (!isExpanded) {
+                expandTimeout = setTimeout(() => {
+                    header.classList.add('sc-expanded');
+                    isExpanded = true;
+                }, 150);
+            }
+        };
+
+        const collapseHeader = () => {
+            if (isFixed) return;
+            clearTimeout(expandTimeout);
+            if (isExpanded) {
+                collapseTimeout = setTimeout(() => {
+                    header.classList.remove('sc-expanded');
+                    isExpanded = false;
+                }, 250);
+            }
+        };
+
+        document.addEventListener('mousemove', (e) => {
+            const activeZone = isExpanded ? 150 : 50;
+            if (e.clientY <= activeZone) expandHeader();
+            else collapseHeader();
+        });
+
+        document.addEventListener('keydown', e => {
+            if (e.altKey && e.key.toLowerCase() === 'h') {
+                isFixed = !isFixed;
+                if (isFixed) {
+                    header.classList.add('sc-expanded');
+                    isExpanded = true;
+                } else {
+                    collapseHeader();
+                }
+            }
+        });
+    };
+
+
     // --- ZENTRALER MUTATION OBSERVER ---
+
     const processInitialDOM = () => {
         if (window.location.href.includes('/redirect/')) {
             const target = document.querySelector(".simpLinkProxy-targetLink")?.href;
@@ -188,21 +274,17 @@
     const masterObserver = new MutationObserver((mutations) => {
         mutations.forEach(mutation => {
             mutation.addedNodes.forEach(node => {
-                if (node.nodeType === 1) { // Nur HTML Elemente verarbeiten
-                    // 1. Line Breaks
+                if (node.nodeType === 1) {
                     if (node.matches?.('div.bbWrapper')) processWrapper(node);
                     else node.querySelectorAll?.('div.bbWrapper').forEach(processWrapper);
 
-                    // 2. Class Cleanup
                     cleanJsLbImage(node);
 
-                    // 3. Iframes / Redgifs
                     if (node.tagName === 'IFRAME' || (node.tagName === 'SPAN' && node.getAttribute('data-s9e-mediaembed') === 'redgifs')) {
                         checkAndRemoveElement(node);
                     }
                     node.querySelectorAll?.('iframe, span[data-s9e-mediaembed="redgifs"]').forEach(checkAndRemoveElement);
 
-                    // 4. Redirects
                     if (node.matches?.('a[href*="/redirect/?to="]:not([data-bypassed])')) processRedirectLink(node);
                     node.querySelectorAll?.('a[href*="/redirect/?to="]:not([data-bypassed])').forEach(processRedirectLink);
                 }
@@ -210,15 +292,19 @@
         });
     });
 
+
     // --- INITIALISIERUNG ---
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            processInitialDOM();
-            masterObserver.observe(document.body, { childList: true, subtree: true });
-        });
-    } else {
+    const initAll = () => {
         processInitialDOM();
+        swapNavLinks();        // Modul: Nav Swap laden
+        initHeaderCollapse();  // Modul: Header Collapse laden
         masterObserver.observe(document.body, { childList: true, subtree: true });
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initAll);
+    } else {
+        initAll();
     }
 
 })();
