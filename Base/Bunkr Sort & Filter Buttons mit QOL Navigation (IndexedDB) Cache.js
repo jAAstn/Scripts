@@ -3,7 +3,7 @@
 // @version      1.0
 // @description  Performance-optimierte Version: Nutzt IndexedDB für unlimitierten, rasend schnellen Cache ohne externe Libraries.
 // @author       jAstn (Optimized)
-// @include        https://bunkr.*/*
+// @include      https://bunkr.*/*
 // @icon         https://i.imgur.com/wY9dGSH.png
 // @grant        GM_xmlhttpRequest
 // @license      MIT
@@ -194,7 +194,6 @@
 
         async function loadAllPages() {
             try {
-                // Versuche Daten aus der IndexedDB zu laden
                 const cachedData = await getCache(CACHE_KEY);
                 if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
                     console.log(`[Bunkr Script] Geladen aus IndexedDB: ${cachedData.length} Items.`);
@@ -248,7 +247,6 @@
             hideLoadingIndicator();
 
             try {
-                // Speichere das rohe Array in die IndexedDB
                 await setCache(CACHE_KEY, allItemsData);
                 console.log("[Bunkr Script] Daten erfolgreich in IndexedDB gespeichert.");
             } catch (e) {
@@ -409,7 +407,6 @@
             refreshBtn.style = "background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-left: auto;";
             refreshBtn.title = "Löscht den Cache und scannt das Album neu";
 
-            // --- HIER WURDE DER CLEAR AUF INDEXEDDB ANGEPASST ---
             refreshBtn.addEventListener("click", async () => {
                 if(confirm("Cache für dieses Album löschen und neu scannen?")) {
                     await clearCache(CACHE_KEY);
@@ -430,8 +427,9 @@
         });
     })();
 
-    // --- MODULE 2: NAVIGATION (WASD / Arrows / Wheel) ---
+    // --- MODULE 2: NAVIGATION (WASD / Arrows / Wheel / Click / ContextMenu) ---
     (function initNavigation() {
+        // Tastatur Navigation
         document.addEventListener('keydown', function (e) {
             const tag = document.activeElement.tagName.toLowerCase();
             if (tag === 'input' || tag === 'textarea' || document.activeElement.isContentEditable) return;
@@ -446,12 +444,27 @@
             }
         }, true);
 
+        // Linksklick = Nächstes Bild
         document.addEventListener('click', function (e) {
             if (e.target.closest('button, a, input, textarea')) return;
             const nextBtn = document.querySelector('button[aria-label="Next slide"]');
             if (nextBtn) nextBtn.click();
         }, true);
 
+        // Rechtsklick = Galerie schließen über LightGallery API
+        document.addEventListener('contextmenu', function (e) {
+            if (e.target.closest('button, a, input, textarea')) return;
+
+            // Die Klasse 'lg-visible' wird zuverlässig von LightGallery gesetzt
+            const lgOuter = document.querySelector('.lg-outer');
+            
+            if (lgOuter && lgOuter.classList.contains('lg-visible') && window.lgInstance) {
+                e.preventDefault(); // Verhindert das Standard-Rechtsklick-Menü
+                window.lgInstance.closeGallery(); // Schließt die Galerie sicher
+            }
+        }, true);
+
+        // Mausrad Navigation
         document.addEventListener('wheel', throttle(function (e) {
             const delta = e.deltaY;
             if (delta < 0) {
